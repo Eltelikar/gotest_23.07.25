@@ -8,8 +8,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 	"gotest_23.07.25/internal/config"
+	"gotest_23.07.25/internal/http-server/handlers"
+	"gotest_23.07.25/internal/http-server/middlewares/logger"
 	"gotest_23.07.25/internal/lib/slogpretty"
-	"gotest_23.07.25/internal/middlewares/logger"
 	"gotest_23.07.25/internal/postgre"
 )
 
@@ -22,8 +23,13 @@ const (
 
 // api methods addresses:
 const (
-	pathMakeNew = "/task"
-	pathAddTask = "/task/{id}/"
+	createSubscription = "/api/v1/subscriptions"                          // post
+	listSubscriptions  = "/api/v1/subscriptions"                          // get
+	readSubscription   = "/api/v1/subscriptions/{service_name}/{user_id}" // get
+	deleteSubscription = "/api/v1/subscriptions/{service_name}/{user_id}" // delete
+	updateSubscription = "/api/v1/subscriptions/{service_name}/{user_id}" // put
+	rangePrice         = "/api/v1/subscriptions/range-price"              // get
+
 )
 
 func main() {
@@ -51,8 +57,7 @@ func main() {
 	}
 
 	router := initRouter(log)
-
-	//TODO: setup handlers
+	initHandlers(log, router, storage)
 
 	// TODO: start server
 }
@@ -68,6 +73,17 @@ func initStorage(cfg *config.Config) (*postgre.Storage, error) {
 
 	slog.Info("Init storage done successfully")
 	return storage, nil
+}
+
+func initHandlers(log *slog.Logger, router *chi.Mux, storage *postgre.Storage) {
+	slog.Info("Init handlers started")
+	router.Post(createSubscription, handlers.NewCreate(log, storage))
+	router.Get(listSubscriptions, handlers.NewList(log, storage))
+	router.Get(readSubscription, handlers.NewRead(log, storage))
+	router.Delete(deleteSubscription, handlers.NewDelete(log, storage))
+	router.Put(updateSubscription, handlers.NewUpdate(log, storage))
+	router.Get(rangePrice, handlers.NewRangePrice(log, storage))
+	slog.Info("Handlers initialization successfully")
 }
 
 func initRouter(log *slog.Logger) *chi.Mux {

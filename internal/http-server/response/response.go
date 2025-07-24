@@ -1,0 +1,25 @@
+package response
+
+import "gotest_23.07.25/internal/postgre"
+
+type Response struct {
+	Status  string                `json:"status"`
+	Error   string                `json:"error,omitempty"`
+	Message string                `json:"message,omitempty"`
+	Fields  postgre.RequestFields `json:"fields,omitempty"`
+}
+
+func OK(msg string, rb *postgre.RequestFields) Response {
+	return Response{
+		Status:  "success",
+		Message: msg,
+		Fields:  *rb,
+	}
+}
+
+func Error(msg string) Response {
+	return Response{
+		Status: "error",
+		Error:  msg,
+	}
+}

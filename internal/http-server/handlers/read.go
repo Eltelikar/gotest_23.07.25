@@ -1,0 +1,56 @@
+package handlers
+
+import (
+	"database/sql"
+	"errors"
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/render"
+	"gotest_23.07.25/internal/http-server/response"
+	pgr "gotest_23.07.25/internal/postgre"
+)
+
+type Read interface {
+	Read(service_name, user_id string) (*pgr.RequestFields, error)
+}
+
+func NewRead(log *slog.Logger, storage Read) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		const op = "http-server.handlers.NewRead"
+
+		log = log.With(
+			slog.String("op", op),
+			slog.String("request_id", middleware.GetReqID(r.Context())),
+		)
+
+		log.Info("Read handler started")
+
+		serviceName := chi.URLParam(r, "service_name")
+		userID := chi.URLParam(r, "user_id")
+
+		if serviceName == "" || userID == "" {
+			log.Info("url param is empty")
+			render.JSON(w, r, response.Error("url param is empty"))
+			return
+		}
+
+		rb, err := storage.Read(serviceName, userID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				log.Warn("record not found: %s, %s", serviceName, userID)
+				render.JSON(w, r, response.Error("record not found"))
+				return
+			}
+			log.Error("Failed to read record", slog.String("error", err.Error()))
+			render.JSON(w, r, response.Error("internal error"))
+			return
+		}
+
+		log.Info("Record read successfully", slog.Any("record", rb))
+		render.JSON(w, r, response.OK("Record read successfully", rb))
+	}
+
+}
