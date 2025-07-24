@@ -1,8 +1,13 @@
 package main
 
 import (
+	"context"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -33,13 +38,9 @@ const (
 )
 
 func main() {
-	err := godotenv.Load("../config.env")
-	if err != nil {
-		err = godotenv.Load("config.env")
-		if err != nil {
-			slog.Error("failed to load .env file", slog.String("error", err.Error()))
-			os.Exit(1)
-		}
+	if err := godotenv.Load("config.env"); err != nil {
+		slog.Error("failed to load .env file", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	cfg := config.MustLoad()
@@ -55,11 +56,48 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
+	defer storage.Close()
 
 	router := initRouter(log)
 	initHandlers(log, router, storage)
 
-	// TODO: start server
+	if err := startServer(cfg, router, log); err != nil {
+		slog.Error("failed to start server", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+}
+
+// startServer инициализирует старт сервера через горутину.
+func startServer(cfg *config.Config, router *chi.Mux, log *slog.Logger) error {
+	srv := &http.Server{
+		Addr:    cfg.HTTPServer.Address,
+		Handler: router,
+	}
+
+	go func() {
+		slog.Info("Starting HTTP server", slog.String("address", cfg.HTTPServer.Address))
+		if err := srv.ListenAndServe(); err != nil {
+			slog.Error("Failed to start HTTP server", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+	}()
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	<-ctx.Done()
+	log.Info("shutting down server gracefully")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Error("graceful shutdown failed", slog.String("error", err.Error()))
+		return err
+	} else {
+		log.Info("server stopped")
+	}
+
+	return nil
 }
 
 // initStorage инициализирует in-memory хранилище и возвращает указатель на него
@@ -75,6 +113,7 @@ func initStorage(cfg *config.Config) (*postgre.Storage, error) {
 	return storage, nil
 }
 
+// initHandlers инициализирует хендлеры для обработки запросов.
 func initHandlers(log *slog.Logger, router *chi.Mux, storage *postgre.Storage) {
 	slog.Info("Init handlers started")
 	router.Post(createSubscription, handlers.NewCreate(log, storage))
@@ -86,6 +125,7 @@ func initHandlers(log *slog.Logger, router *chi.Mux, storage *postgre.Storage) {
 	slog.Info("Handlers initialization successfully")
 }
 
+// initRouter инициализирует роутер и подключает middleware
 func initRouter(log *slog.Logger) *chi.Mux {
 	slog.Info("Starting router")
 	router := chi.NewRouter()

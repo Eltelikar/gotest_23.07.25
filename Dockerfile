@@ -1,7 +1,7 @@
 FROM golang:1.24.3 AS builder
 WORKDIR /app
 COPY . .
-RUN go build -o app ./wallet_app
+RUN go build -o app ./main
 
 FROM debian:bookworm-slim
 WORKDIR /app

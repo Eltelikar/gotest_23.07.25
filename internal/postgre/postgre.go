@@ -4,8 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 )
 
@@ -24,7 +28,7 @@ type Storage struct {
 func New(storageLink string) (*Storage, error) {
 	const op = "internal.postgre.New"
 
-	db, err := sql.Open("postgre", storageLink)
+	db, err := sql.Open("postgres", storageLink)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -33,24 +37,22 @@ func New(storageLink string) (*Storage, error) {
 	db.SetConnMaxIdleTime(20)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS subscriptions(
-		service_name TEXT NOT NULL,
-		price BIGINT CHECK (price > 0),
-		user_id UUID NOT NULL,
-		start_date DATE NOT NULL,
-		end_date DATE,
-		PRIMARY KEY (service_name, user_id));
-		`)
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to create table: %w", op, err)
+		return nil, fmt.Errorf("%s: failed to set driver for migration: %w", op, err)
 	}
 
-	_, err = db.Exec(`
-	CREATE INDEX IF NOT EXISTS idx_subscription ON subscriptions(service_name)
-	`)
+	m, err := migrate.NewWithDatabaseInstance(
+		os.Getenv("MIGRATION_PATH"),
+		"postgres",
+		driver,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to create index: %w", op, err)
+		return nil, fmt.Errorf("%s: failed to set instance for migration: %w", op, err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return nil, fmt.Errorf("%s: failed to apply migration: %w", op, err)
 	}
 
 	return &Storage{db: db}, nil

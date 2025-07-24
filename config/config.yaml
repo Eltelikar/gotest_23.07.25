@@ -5,7 +5,7 @@ storage_link:
   sql_password: "postgres"
   sql_host: "db"
   sql_port: "5432"
-  sql_dbname: "wallet_app"
+  sql_dbname: "gotest"
   sql_sslmode: "disable"
 http_server:
   timeout: "4s"
