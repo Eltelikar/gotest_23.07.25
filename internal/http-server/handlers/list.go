@@ -28,11 +28,13 @@ func NewList(log *slog.Logger, storage List) http.HandlerFunc {
 		subscriptions, err := storage.List()
 		if err != nil {
 			log.Error("Failed to list subscriptions", slog.String("error", err.Error()))
+			w.WriteHeader(http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 
 		log.Info("Subscriptions listed successfully")
+		w.WriteHeader(http.StatusOK)
 		render.JSON(w, r, map[string]any{
 			"status":        "success",
 			"message":       "Subscriptions listed successfully",

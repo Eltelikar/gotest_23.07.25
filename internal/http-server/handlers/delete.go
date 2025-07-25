@@ -31,6 +31,7 @@ func NewDelete(log *slog.Logger, storage Delete) http.HandlerFunc {
 		userID := chi.URLParam(r, "user_id")
 		if serviceName == "" || userID == "" {
 			log.Info("url param is empty")
+			w.WriteHeader(http.StatusBadRequest)
 			render.JSON(w, r, response.Error("url param is empty"))
 			return
 		}
@@ -38,15 +39,18 @@ func NewDelete(log *slog.Logger, storage Delete) http.HandlerFunc {
 		if err := storage.Delete(serviceName, userID); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				log.Warn("record not found: %s, %s", serviceName, userID)
+				w.WriteHeader(http.StatusNotFound)
 				render.JSON(w, r, response.Error("record not found"))
 				return
 			}
 			log.Error("Failed to delete record", slog.String("error", err.Error()))
+			w.WriteHeader(http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 
 		log.Info("Record deleted successfully", slog.String("service_name", serviceName), slog.String("user_id", userID))
+		w.WriteHeader(http.StatusOK)
 		render.JSON(w, r, response.OK("Record deleted", nil))
 	}
 }

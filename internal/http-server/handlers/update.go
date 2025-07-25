@@ -31,6 +31,7 @@ func NewUpdate(log *slog.Logger, storage Update) http.HandlerFunc {
 
 		if err := render.DecodeJSON(r.Body, &rb); err != nil {
 			log.Error("Failed to decode request body", slog.String("error", err.Error()))
+			w.WriteHeader(http.StatusBadRequest)
 			render.JSON(w, r, response.Error("invalid request body"))
 			return
 		}
@@ -40,15 +41,18 @@ func NewUpdate(log *slog.Logger, storage Update) http.HandlerFunc {
 		if err := storage.Update(rb); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				log.Warn("record not found: %s, %s", rb.ServiceName, rb.UserId)
+				w.WriteHeader(http.StatusNotFound)
 				render.JSON(w, r, response.Error("record not found"))
 				return
 			}
 			log.Error("Failed to update record", slog.String("error", err.Error()))
+			w.WriteHeader(http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 
 		log.Info("Record updated successfully", slog.Any("record", rb))
+		w.WriteHeader(http.StatusOK)
 		render.JSON(w, r, response.OK("Record updated successfully", &rb))
 	}
 }

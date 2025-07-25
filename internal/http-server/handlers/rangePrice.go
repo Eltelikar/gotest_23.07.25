@@ -35,6 +35,7 @@ func NewRangePrice(log *slog.Logger, storage RangePrice) http.HandlerFunc {
 		var rb RequestBody
 		if err := render.DecodeJSON(r.Body, &rb); err != nil {
 			log.Error("Failed to decode request body", slog.String("error", err.Error()))
+			w.WriteHeader(http.StatusBadRequest)
 			render.JSON(w, r, response.Error("invalid request body"))
 			return
 		}
@@ -43,12 +44,14 @@ func NewRangePrice(log *slog.Logger, storage RangePrice) http.HandlerFunc {
 
 		if rb.StartDate.IsZero() || rb.EndDate.IsZero() || rb.ServiceName == "" || rb.UserID == "" {
 			log.Info("url param is empty")
+			w.WriteHeader(http.StatusBadRequest)
 			render.JSON(w, r, response.Error("url param is empty"))
 			return
 		}
 
 		if rb.StartDate.After(rb.EndDate) {
 			log.Info("Start-date is after end-date")
+			w.WriteHeader(http.StatusBadRequest)
 			render.JSON(w, r, response.Error("start date cannot be after end date"))
 			return
 		}
@@ -56,10 +59,12 @@ func NewRangePrice(log *slog.Logger, storage RangePrice) http.HandlerFunc {
 		price, err := storage.RangePrice(rb.StartDate, rb.EndDate, rb.ServiceName, rb.UserID)
 		if err != nil {
 			log.Error("Failed to get range price", slog.String("error", err.Error()))
+			w.WriteHeader(http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 		log.Info("Get range price successfully", slog.Uint64("price", price))
+		w.WriteHeader(http.StatusOK)
 		render.JSON(w, r, map[string]any{
 			"status":  "success",
 			"message": "Get range price successfully",

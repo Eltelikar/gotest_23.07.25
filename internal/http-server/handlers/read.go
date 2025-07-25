@@ -33,6 +33,7 @@ func NewRead(log *slog.Logger, storage Read) http.HandlerFunc {
 
 		if serviceName == "" || userID == "" {
 			log.Info("url param is empty")
+			w.WriteHeader(http.StatusBadRequest)
 			render.JSON(w, r, response.Error("url param is empty"))
 			return
 		}
@@ -41,15 +42,18 @@ func NewRead(log *slog.Logger, storage Read) http.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				log.Warn("record not found: %s, %s", serviceName, userID)
+				w.WriteHeader(http.StatusNotFound)
 				render.JSON(w, r, response.Error("record not found"))
 				return
 			}
 			log.Error("Failed to read record", slog.String("error", err.Error()))
+			w.WriteHeader(http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 
 		log.Info("Record read successfully", slog.Any("record", rb))
+		w.WriteHeader(http.StatusOK)
 		render.JSON(w, r, response.OK("Record read successfully", rb))
 	}
 

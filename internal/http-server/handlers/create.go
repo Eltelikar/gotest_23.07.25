@@ -30,6 +30,7 @@ func NewCreate(log *slog.Logger, storage Create) http.HandlerFunc {
 		if err := render.DecodeJSON(r.Body, &rb); err != nil {
 			log.Error("Failed to decode request body", slog.String("error", err.Error()))
 			render.JSON(w, r, response.Error("invalid request body"))
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		log.Debug("Decoded request body", slog.Any("request_body", rb))
@@ -37,10 +38,12 @@ func NewCreate(log *slog.Logger, storage Create) http.HandlerFunc {
 		_, err := storage.Create(rb)
 		if err != nil {
 			log.Error("Failed to create record", slog.String("error", err.Error()))
+			w.WriteHeader(http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 		log.Info("New record created successfully", slog.Any("record", rb))
+		w.WriteHeader(http.StatusOK)
 		render.JSON(w, r, response.OK("New record created", &rb))
 	}
 }
