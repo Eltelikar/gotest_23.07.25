@@ -18,14 +18,6 @@ func OK(msg string, rb *postgre.RequestFields) Response {
 	}
 }
 
-func OKUpdate(msg string, rb *postgre.RequestUpdateFields) Response {
-	return Response{
-		Status:       "success",
-		Message:      msg,
-		FieldsUpdate: *rb,
-	}
-}
-
 func Error(msg string) Response {
 	return Response{
 		Status: "error",

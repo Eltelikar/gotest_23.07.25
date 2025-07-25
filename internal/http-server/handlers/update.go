@@ -17,6 +17,12 @@ type Update interface {
 	Update(service_name, user_id string, rb postgre.RequestUpdateFields) error
 }
 
+type UpdateResponse struct {
+	Status  string                      `json:"status"`
+	Message string                      `json:"message,omitempty"`
+	Fields  postgre.RequestUpdateFields `json:"newfields,omitempty"`
+}
+
 // NewUpdate возвращает хендлер, изменяющий информацию о подписке
 //
 // @Summary Изменить информацию о подписке
@@ -82,6 +88,10 @@ func NewUpdate(log *slog.Logger, storage Update) http.HandlerFunc {
 
 		log.Info("Record updated successfully", slog.Any("record", rb))
 		w.WriteHeader(http.StatusOK)
-		render.JSON(w, r, response.OKUpdate("Record updated successfully", &rb))
+		render.JSON(w, r, UpdateResponse{
+			Status:  "success",
+			Message: "record updated successfully",
+			Fields:  rb,
+		})
 	}
 }

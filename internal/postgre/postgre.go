@@ -269,7 +269,8 @@ func (s *Storage) RangePrice(start_date time.Time, end_date time.Time, service_n
 	err = tx.QueryRow(`
 		SELECT SUM(price)
 		FROM subscriptions
-		WHERE start_date <= $2 AND end_date >= $1
+		WHERE start_date <= $2 
+			AND (end_date is NULL OR end_date >= $1)
 			AND ($3 = '' OR service_name = $3)
 			AND ($4 = '' OR user_id = $4::uuid)
 	`, start_date, end_date, service_name, user_id).Scan(&totalPrice)
