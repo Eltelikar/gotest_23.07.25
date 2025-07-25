@@ -1,0 +1,280 @@
+definitions:
+  handlers.ListResponse:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
+      subscriptions:
+        items:
+          $ref: '#/definitions/postgre.RequestFields'
+        type: array
+    type: object
+  handlers.RangeRequestBody:
+    properties:
+      end_date:
+        example: "2025-12-31T00:00:00Z"
+        type: string
+      service_name:
+        example: Google
+        type: string
+      start_date:
+        example: "2025-01-01T00:00:00Z"
+        type: string
+      user_id:
+        example: b1d4c0ec-9a4a-4e3a-9fdd-5e27d0be16fa
+        type: string
+    type: object
+  handlers.RangeResponse:
+    properties:
+      message:
+        type: string
+      price:
+        type: integer
+      status:
+        type: string
+    type: object
+  postgre.RequestFields:
+    properties:
+      end_date:
+        example: "2025-12-31T00:00:00Z"
+        type: string
+      price:
+        example: 100
+        type: integer
+      service_name:
+        example: Google
+        type: string
+      start_date:
+        example: "2025-01-01T00:00:00Z"
+        type: string
+      user_id:
+        example: b1d4c0ec-9a4a-4e3a-9fdd-5e27d0be16fa
+        type: string
+    type: object
+  postgre.RequestUpdateFields:
+    properties:
+      end_date:
+        example: "2025-12-31T00:00:00Z"
+        type: string
+      price:
+        example: 100
+        type: integer
+      start_date:
+        example: "2025-01-01T00:00:00Z"
+        type: string
+    type: object
+  response.Response:
+    properties:
+      error:
+        type: string
+      fields:
+        $ref: '#/definitions/postgre.RequestFields'
+      fieldsUpd:
+        $ref: '#/definitions/postgre.RequestUpdateFields'
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/subscriptions:
+    get:
+      description: Возвращает все подписки
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Получить список всех подписок
+      tags:
+      - subscriptions
+    post:
+      consumes:
+      - application/json
+      description: Возвращает поля записи
+      parameters:
+      - description: Данные для внесения
+        in: body
+        name: subscription
+        required: true
+        schema:
+          $ref: '#/definitions/postgre.RequestFields'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Создать новую запись о подписке
+      tags:
+      - subscriptions
+  /api/v1/subscriptions/{service_name}/{user_id}:
+    delete:
+      description: Удаляет запись по service_name и user_id
+      parameters:
+      - description: Имя сервися
+        in: path
+        name: service_name
+        required: true
+        type: string
+      - description: UUID пользователя
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Удалить запись о подписке
+      tags:
+      - subscriptions
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о подписке по service_name и user_id
+      parameters:
+      - description: Имя сервиса
+        in: path
+        name: service_name
+        required: true
+        type: string
+      - description: UUID пользователя
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Получить информацию о подписке
+      tags:
+      - subscriptions
+    put:
+      consumes:
+      - application/json
+      description: Возвращает информацию о подписке по service_name и user_id
+      parameters:
+      - description: Имя подписки изменяемой записи
+        in: path
+        name: service_name
+        required: true
+        type: string
+      - description: UUID пользователя изменяемой записи
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Новая информация о подписке
+        in: body
+        name: newFields
+        required: true
+        schema:
+          $ref: '#/definitions/postgre.RequestUpdateFields'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Изменить информацию о подписке
+      tags:
+      - subscriptions
+  /api/v1/subscriptions/range-price:
+    post:
+      consumes:
+      - application/json
+      description: Подсчитывает общую стоимость подписок по start_date, end_date,
+        service_name, user_id. service_name и user_id можно передать пустыми.
+      parameters:
+      - description: фильтры для рассчета
+        in: body
+        name: subscription_filter
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RangeRequestBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RangeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Получить общую стоимость подписок за период
+      tags:
+      - subscriptions
+swagger: "2.0"

@@ -10,13 +10,27 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"gotest_23.07.25/internal/http-server/response"
-	pgr "gotest_23.07.25/internal/postgre"
+	"gotest_23.07.25/internal/postgre"
 )
 
 type Read interface {
-	Read(service_name, user_id string) (*pgr.RequestFields, error)
+	Read(service_name, user_id string) (*postgre.RequestFields, error)
 }
 
+// NewRead возвращает хендлер, возвращающий информацию о выбранной подписке
+//
+// @Summary Получить информацию о подписке
+// @Description Возвращает информацию о подписке по service_name и user_id
+// @Tags subscriptions
+// @Accept json
+// @Produce json
+// @Param service_name path string true "Имя сервиса"
+// @Param user_id path string true "UUID пользователя"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.Response
+// @Failure 404 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /api/v1/subscriptions/{service_name}/{user_id} [get]
 func NewRead(log *slog.Logger, storage Read) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "http-server.handlers.NewRead"

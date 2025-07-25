@@ -27,7 +27,7 @@ type StorageLink struct {
 }
 
 type HTTPServer struct {
-	Address      string        `yaml:"address" env-default:"0.0.0.0:8080"`
+	Address      string        `yaml:"address" env-default:":8080"`
 	Timeout      time.Duration `yaml:"timeout" env-default:"10s"`
 	Idle_timeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
 }

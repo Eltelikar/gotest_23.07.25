@@ -2,6 +2,7 @@ package postgre
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -14,16 +15,24 @@ import (
 )
 
 type RequestFields struct {
-	ServiceName string     `json:"service_name"`
-	Price       uint16     `json:"price"`
-	UserId      string     `json:"user_id"`
-	StartDate   time.Time  `json:"start_date"`
-	EndDate     *time.Time `json:"end_date,omitempty"`
+	ServiceName string     `json:"service_name" example:"Google"`
+	Price       uint16     `json:"price" example:"100"`
+	UserId      string     `json:"user_id" example:"b1d4c0ec-9a4a-4e3a-9fdd-5e27d0be16fa"`
+	StartDate   time.Time  `json:"start_date" example:"2025-01-01T00:00:00Z"`
+	EndDate     *time.Time `json:"end_date,omitempty" example:"2025-12-31T00:00:00Z"`
+}
+
+type RequestUpdateFields struct {
+	Price     uint16     `json:"price" example:"100"`
+	StartDate time.Time  `json:"start_date" example:"2025-01-01T00:00:00Z"`
+	EndDate   *time.Time `json:"end_date,omitempty" example:"2025-12-31T00:00:00Z"`
 }
 
 type Storage struct {
 	db *sql.DB
 }
+
+var ErrSubscriptionExists = errors.New("subscription already exists")
 
 func New(storageLink string) (*Storage, error) {
 	const op = "internal.postgre.New"
@@ -71,7 +80,7 @@ func (s *Storage) Create(rb RequestFields) (string, error) {
 
 	res, err := tx.Exec(`
 		INSERT INTO subscriptions (service_name, price, user_id, start_date, end_date)
-		VALUES($1, $2, $3, $4, $5)
+		VALUES($1, $2, $3::uuid, $4, $5)
 		ON CONFLICT (service_name, user_id) DO NOTHING
 	`, rb.ServiceName, rb.Price, rb.UserId, rb.StartDate, rb.EndDate)
 	if err != nil {
@@ -85,6 +94,7 @@ func (s *Storage) Create(rb RequestFields) (string, error) {
 
 	if rowsAffected == 0 {
 		slog.Info("Subsctibtion already exists", slog.String("service_name", rb.ServiceName), slog.String("user_id", rb.UserId))
+		return "", ErrSubscriptionExists
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -111,11 +121,11 @@ func (s *Storage) Read(service_name, user_id string) (*RequestFields, error) {
 	err = tx.QueryRow(`
 		SELECT service_name, price, user_id, start_date, end_date
 		FROM subscriptions
-		WHERE service_name = $1 AND user_id = $2
+		WHERE service_name = $1 AND user_id = $2::uuid
 	`, service_name, user_id).Scan(&rb.ServiceName, &rb.Price, &rb.UserId, &rb.StartDate, &rb.EndDate)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("%s: no subscription found for service %s and user %s", op, service_name, user_id)
+			return nil, sql.ErrNoRows
 		}
 		return nil, fmt.Errorf("%s: failed to query row: %w", op, err)
 	}
@@ -129,7 +139,7 @@ func (s *Storage) Read(service_name, user_id string) (*RequestFields, error) {
 }
 
 // Update обновляет информацию о подписке в таблице.
-func (s *Storage) Update(rb RequestFields) error {
+func (s *Storage) Update(service_name, user_id string, rb RequestUpdateFields) error {
 	const op = "internal.postgre.Update"
 	slog.Info("Start update tx", slog.String("op", op))
 
@@ -142,8 +152,8 @@ func (s *Storage) Update(rb RequestFields) error {
 	res, err := tx.Exec(`
 		UPDATE subscriptions
 		SET price = $1, start_date = $2, end_date = $3
-		WHERE service_name = $4 AND user_id = $5
-	`, rb.Price, rb.StartDate, rb.EndDate, rb.ServiceName, rb.UserId)
+		WHERE service_name = $4 AND user_id = $5::uuid
+	`, rb.Price, rb.StartDate, rb.EndDate, service_name, user_id)
 	if err != nil {
 		return fmt.Errorf("%s: failed to update table: %w", op, err)
 	}
@@ -154,7 +164,7 @@ func (s *Storage) Update(rb RequestFields) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("%s: no subscription found for service %s and user %s", op, rb.ServiceName, rb.UserId)
+		return sql.ErrNoRows
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -178,7 +188,7 @@ func (s *Storage) Delete(service_name, user_id string) error {
 
 	res, err := tx.Exec(`
 		DELETE FROM subscriptions
-		WHERE service_name = $1 AND user_id = $2
+		WHERE service_name = $1 AND user_id = $2::uuid
 	`, service_name, user_id)
 	if err != nil {
 		return fmt.Errorf("%s: failed to delete from table: %w", op, err)
@@ -190,7 +200,7 @@ func (s *Storage) Delete(service_name, user_id string) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("%s: no subscription found for service %s and user %s", op, service_name, user_id)
+		return sql.ErrNoRows
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -259,7 +269,9 @@ func (s *Storage) RangePrice(start_date time.Time, end_date time.Time, service_n
 	err = tx.QueryRow(`
 		SELECT SUM(price)
 		FROM subscriptions
-		WHERE start_date >= $1 AND end_date <= $2 AND service_name = $3 AND user_id = $4
+		WHERE start_date <= $2 AND end_date >= $1
+			AND ($3 = '' OR service_name = $3)
+			AND ($4 = '' OR user_id = $4::uuid)
 	`, start_date, end_date, service_name, user_id).Scan(&totalPrice)
 	if err != nil {
 		if err == sql.ErrNoRows {

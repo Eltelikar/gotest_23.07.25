@@ -16,6 +16,24 @@ type Delete interface {
 	Delete(serviceName, userID string) error
 }
 
+type DeleteResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+// NewDelete возвращает хендлер, удаляющий запись из таблицы
+//
+// @Summary Удалить запись о подписке
+// @Description Удаляет запись по service_name и user_id
+// @Tags subscriptions
+// @Produce json
+// @Param service_name path string true "Имя сервися"
+// @Param user_id path string true "UUID пользователя"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.Response
+// @Failure 404 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /api/v1/subscriptions/{service_name}/{user_id} [delete]
 func NewDelete(log *slog.Logger, storage Delete) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "http-server.handlers.NewDelete"
@@ -51,6 +69,9 @@ func NewDelete(log *slog.Logger, storage Delete) http.HandlerFunc {
 
 		log.Info("Record deleted successfully", slog.String("service_name", serviceName), slog.String("user_id", userID))
 		w.WriteHeader(http.StatusOK)
-		render.JSON(w, r, response.OK("Record deleted", nil))
+		render.JSON(w, r, DeleteResponse{
+			Status:  "success",
+			Message: "record was deleted successfully",
+		})
 	}
 }

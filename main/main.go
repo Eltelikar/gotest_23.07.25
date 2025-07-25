@@ -12,6 +12,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
+	httpSwagger "github.com/swaggo/http-swagger"
+	_ "gotest_23.07.25/docs"
 	"gotest_23.07.25/internal/config"
 	"gotest_23.07.25/internal/http-server/handlers"
 	"gotest_23.07.25/internal/http-server/middlewares/logger"
@@ -33,7 +35,7 @@ const (
 	readSubscription   = "/api/v1/subscriptions/{service_name}/{user_id}" // get
 	deleteSubscription = "/api/v1/subscriptions/{service_name}/{user_id}" // delete
 	updateSubscription = "/api/v1/subscriptions/{service_name}/{user_id}" // put
-	rangePrice         = "/api/v1/subscriptions/range-price"              // get
+	rangePrice         = "/api/v1/subscriptions/range-price"              // post
 
 )
 
@@ -60,6 +62,8 @@ func main() {
 
 	router := initRouter(log)
 	initHandlers(log, router, storage)
+
+	router.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	if err := startServer(cfg, router, log); err != nil {
 		slog.Error("failed to start server", slog.String("error", err.Error()))
@@ -121,7 +125,7 @@ func initHandlers(log *slog.Logger, router *chi.Mux, storage *postgre.Storage) {
 	router.Get(readSubscription, handlers.NewRead(log, storage))
 	router.Delete(deleteSubscription, handlers.NewDelete(log, storage))
 	router.Put(updateSubscription, handlers.NewUpdate(log, storage))
-	router.Get(rangePrice, handlers.NewRangePrice(log, storage))
+	router.Post(rangePrice, handlers.NewRangePrice(log, storage))
 	slog.Info("Handlers initialization successfully")
 }
 

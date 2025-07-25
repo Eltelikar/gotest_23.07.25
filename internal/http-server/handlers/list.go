@@ -14,6 +14,21 @@ type List interface {
 	List() ([]postgre.RequestFields, error)
 }
 
+type ListResponse struct {
+	Status        string                  `json:"status"`
+	Message       string                  `json:"message"`
+	Subscriptions []postgre.RequestFields `json:"subscriptions"`
+}
+
+// NewList возвращает хендлер, возвращающий все подписки
+//
+// @Summary Получить список всех подписок
+// @Description Возвращает все подписки
+// @Tags subscriptions
+// @Produce json
+// @Success 200 {object} ListResponse
+// @Failure 500 {object} response.Response
+// @Router /api/v1/subscriptions [get]
 func NewList(log *slog.Logger, storage List) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "http-server.handlers.NewList"
@@ -35,10 +50,10 @@ func NewList(log *slog.Logger, storage List) http.HandlerFunc {
 
 		log.Info("Subscriptions listed successfully")
 		w.WriteHeader(http.StatusOK)
-		render.JSON(w, r, map[string]any{
-			"status":        "success",
-			"message":       "Subscriptions listed successfully",
-			"subscriptions": subscriptions,
+		render.JSON(w, r, ListResponse{
+			Status:        "success",
+			Message:       "Subscriptions listed successfully",
+			Subscriptions: subscriptions,
 		})
 	}
 }

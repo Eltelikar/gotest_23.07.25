@@ -8,5 +8,6 @@ storage_link:
   sql_dbname: "gotest"
   sql_sslmode: "disable"
 http_server:
+  address: ":8080"
   timeout: "4s"
   idle_timeout: "60s"

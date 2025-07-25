@@ -1,19 +1,37 @@
 package handlers
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"gotest_23.07.25/internal/http-server/response"
-	pgr "gotest_23.07.25/internal/postgre"
+	"gotest_23.07.25/internal/postgre"
 )
 
 type Create interface {
-	Create(rb pgr.RequestFields) (string, error)
+	Create(rb postgre.RequestFields) (string, error)
 }
 
+type ErrorResponse struct {
+	Message string `json:"message" example:"invalid request body"`
+}
+
+// NewCreate возвращает хендлер, создающий новую запись в таблице
+//
+// @Summary Создать новую запись о подписке
+// @Description Возвращает поля записи
+// @Tags subscriptions
+// @Accept json
+// @Produce json
+// @Param subscription body postgre.RequestFields true "Данные для внесения"
+// @Success 200 {object} response.Response
+// @Failure 400 {object} response.Response
+// @Failure 409 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /api/v1/subscriptions [post]
 func NewCreate(log *slog.Logger, storage Create) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "http-server.handlers.NewCreate"
@@ -25,7 +43,7 @@ func NewCreate(log *slog.Logger, storage Create) http.HandlerFunc {
 
 		log.Info("Create handler started")
 
-		var rb pgr.RequestFields
+		var rb postgre.RequestFields
 
 		if err := render.DecodeJSON(r.Body, &rb); err != nil {
 			log.Error("Failed to decode request body", slog.String("error", err.Error()))
@@ -37,6 +55,12 @@ func NewCreate(log *slog.Logger, storage Create) http.HandlerFunc {
 
 		_, err := storage.Create(rb)
 		if err != nil {
+			if errors.Is(err, postgre.ErrSubscriptionExists) {
+				log.Error("Record already exists")
+				w.WriteHeader(http.StatusConflict)
+				render.JSON(w, r, response.Error("Record already exists"))
+				return
+			}
 			log.Error("Failed to create record", slog.String("error", err.Error()))
 			w.WriteHeader(http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("internal error"))
